@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autenticação com Firebase e Limite de Tempo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      width: 300px;
+      text-align: center;
+    }
+
+    h2 {
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #logout-btn {
+      display: none;
+    }
+
+    #success-message {
+      display: none;
+    }
+
+    #timeout-message {
+      display: none;
+      color: red;
+    }
+
+    #timer {
+      font-size: 18px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="auth-container">
+    <section id="login-section">
+      <h2>Login</h2>
+      <div class="form-group">
+        <input type="email" id="login-email" placeholder="Email" required>
+        <input type="password" id="login-password" placeholder="Senha" required>
+        <button id="login-btn">Login</button>
+      </div>
+    </section>
+
+    <section id="signup-section">
+      <h2>Cadastro</h2>
+      <div class="form-group">
+        <input type="email" id="signup-email" placeholder="Email" required>
+        <input type="password" id="signup-password" placeholder="Senha" required>
+        <button id="signup-btn">Cadastrar</button>
+      </div>
+    </section>
+
+    <button id="logout-btn">Logout</button>
+  </div>
+
+  <div class="container" id="success-message">
+    <h2>Parabéns!</h2>
+    <p>Você agora tem um banco de dados de autenticação.</p>
+    <p id="timeout-message">Seu tempo na página está prestes a expirar!</p>
+    <p id="timer">Tempo restante: <span id="time-remaining"></span></p>
+    <button id="logout-success-btn">Logout</button>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    // Import the functions from the Firebase SDK
+    import { initializeApp } from "<https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js>";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "<https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js>";
+
+    // Firebase configuration (substitua pelos seus dados)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDCVcjp9vLzxebm8HIyAQoE9vFAMaCf6bk",
+      authDomain: "login-teste-prof.firebaseapp.com",
+      projectId: "login-teste-prof",
+      storageBucket: "login-teste-prof.appspot.com",
+      messagingSenderId: "894521288786",
+      appId: "1:894521288786:web:2c89a44383dd8b613f978b"
+    };
+
+    // Inicializa o Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const TIME_LIMIT = 30 * 60 * 1000; // 30 minutos em milissegundos
+    const BLOCK_TIME = 24 * 60 * 60 * 1000; // 24 horas em milissegundos
+
+    // Função para atualizar o timer
+    function updateTimer(remaining) {
+      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+      document.getElementById('time-remaining').textContent = `${minutes}m ${seconds}s`;
+    }
+
+    // Verifica se o usuário está logado e controla o tempo
+    function checkSessionTime() {
+      const loginTime = localStorage.getItem('loginTime');
+      const lastLoginDate = localStorage.getItem('lastLoginDate');
+      const currentDate = new Date().toISOString().split('T')[0]; // Data atual (YYYY-MM-DD)
+
+      if (loginTime && lastLoginDate === currentDate) {
+        const currentTime = Date.now();
+        const elapsed = currentTime - loginTime;
+
+        if (elapsed >= TIME_LIMIT) {
+          alert('Seu tempo de uso expirou. Você será desconectado.');
+          signOut(auth).then(() => {
+            document.getElementById('auth-container').style.display = 'block';
+            document.getElementById('success-message').style.display = 'none';
+            localStorage.removeItem('loginTime'); // Limpa o tempo de login
+            localStorage.removeItem('lastLoginDate'); // Limpa a data do último login
+            localStorage.setItem('accessBlocked', true); // Bloqueia novos acessos
+          });
+        } else {
+          const remaining = TIME_LIMIT - elapsed;
+          updateTimer(remaining);
+        }
+      } else if (lastLoginDate !== currentDate) {
+        // Se a data do último login não for a data atual, permite novo login
+        localStorage.removeItem('loginTime');
+        localStorage.setItem('lastLoginDate', currentDate); // Atualiza a data do último login
+      } else {
+        alert('Você já utilizou seus 30 minutos hoje. Tente novamente amanhã.');
+        signOut(auth); // Desconecta o usuário se ele já usou o tempo permitido
+      }
+    }
+
+    // Função de login
+    document.getElementById('login-btn').addEventListener('click', () => {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+
+      // Verifica se o acesso está bloqueado
+      if (localStorage.getItem('accessBlocked')) {
+        alert('Você já utilizou seus 30 minutos hoje. Tente novamente amanhã.');
+        return;
+      }
+
+      signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          const currentTime = Date.now();
+          localStorage.setItem('loginTime', currentTime); // Armazena a hora de login
+          localStorage.setItem('lastLoginDate', new Date().toISOString().split('T')[0]); // Armazena a data do último login
+          document.getElementById('auth-container').style.display = 'none';
+          document.getElementById('success-message').style.display = 'block';
+
+          // Inicia a verificação de tempo a cada segundo
+          setInterval(checkSessionTime, 1000);
+        })
+        .catch((error) => {
+          alert('Erro no login: ' + error.message);
+        });
+    });
+
+    // Função de cadastro
+    document.getElementById('signup-btn').addEventListener('click', () => {
+      const email = document.getElementById('signup-email').value;
+      const password = document.getElementById('signup-password').value;
+
+      createUserWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          alert('Cadastro realizado com sucesso!');
+        })
+        .catch((error) => {
+          alert('Erro no cadastro: ' + error.message);
+        });
+    });
+
+    // Função de logout
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      signOut(auth).then(() => {
+        alert('Logout realizado com sucesso!');
+        document.getElementById('auth-container').style.display = 'block';
+        document.getElementById('success-message').style.display = 'none';
+        localStorage.removeItem('loginTime'); // Lim
+
+pa o tempo de login
+        localStorage.removeItem('lastLoginDate'); // Limpa a data do último login
+      }).catch((error) => {
+        alert('Erro ao realizar logout: ' + error.message);
+      });
+    });
+
+    // Monitora o estado de autenticação
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        document.getElementById('auth-container').style.display = 'none';
+        document.getElementById('success-message').style.display = 'block';
+        const currentTime = Date.now();
+        localStorage.setItem('loginTime', currentTime); // Armazena a hora de login
+        localStorage.setItem('lastLoginDate', new Date().toISOString().split('T')[0]); // Armazena a data do último login
+        setInterval(checkSessionTime, 1000); // Inicia o intervalo de verificação
+      } else {
+        document.getElementById('auth-container').style.display = 'block';
+        document.getElementById('success-message').style.display = 'none';
+        localStorage.removeItem('loginTime'); // Limpa o tempo de login
+        localStorage.removeItem('lastLoginDate'); // Limpa a data do último login
+      }
+    });
+  </script>
+</body>
+</html>

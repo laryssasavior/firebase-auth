@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autenticação com Firebase</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      width: 300px;
+      text-align: center;
+    }
+
+    h2 {
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #logout-btn {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Login</h2>
+    <div class="form-group">
+      <input type="email" id="login-email" placeholder="Email" required>
+      <input type="password" id="login-password" placeholder="Senha" required>
+      <button id="login-btn">Login</button>
+    </div>
+
+    <h2>Cadastro</h2>
+    <div class="form-group">
+      <input type="email" id="signup-email" placeholder="Email" required>
+      <input type="password" id="signup-password" placeholder="Senha" required>
+      <button id="signup-btn">Cadastrar</button>
+    </div>
+
+    <button id="logout-btn">Logout</button>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    // Import the functions from the Firebase SDK
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+
+    // Firebase configuration (substitua pelos seus dados)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDCVcjp9vLzxebm8HIyAQoE9vFAMaCf6bk",
+      authDomain: "login-teste-prof.firebaseapp.com",
+      projectId: "login-teste-prof",
+      storageBucket: "login-teste-prof.appspot.com",
+      messagingSenderId: "894521288786",
+      appId: "1:894521288786:web:2c89a44383dd8b613f978b"
+    };
+
+    // Inicializa o Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // Função de login
+    document.getElementById('login-btn').addEventListener('click', () => {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+
+      signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          alert('Login realizado com sucesso!');
+          toggleAuthState(true);
+        })
+        .catch((error) => {
+          alert('Erro no login: ' + error.message);
+        });
+    });
+
+    // Função de cadastro
+    document.getElementById('signup-btn').addEventListener('click', () => {
+      const email = document.getElementById('signup-email').value;
+      const password = document.getElementById('signup-password').value;
+
+      createUserWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          alert('Cadastro realizado com sucesso!');
+          toggleAuthState(true);
+        })
+        .catch((error) => {
+          alert('Erro no cadastro: ' + error.message);
+        });
+    });
+
+    // Função de logout
+    document.getElementById('logout-btn').addEventListener('click', () => {
+      signOut(auth).then(() => {
+        alert('Logout realizado com sucesso!');
+        toggleAuthState(false);
+      }).catch((error) => {
+        alert('Erro ao realizar logout: ' + error.message);
+      });
+    });
+
+    // Verifica se há usuário logado
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        toggleAuthState(true);
+      } else {
+        toggleAuthState(false);
+      }
+    });
+
+    // Função para alternar o estado da autenticação (ocultar/mostrar botões)
+    function toggleAuthState(isLoggedIn) {
+      if (isLoggedIn) {
+        document.getElementById('login-btn').style.display = 'none';
+        document.getElementById('signup-btn').style.display = 'none';
+        document.getElementById('logout-btn').style.display = 'block';
+      } else {
+        document.getElementById('login-btn').style.display = 'block';
+        document.getElementById('signup-btn').style.display = 'block';
+        document.getElementById('logout-btn').style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>
